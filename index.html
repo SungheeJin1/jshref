@@ -227,6 +227,14 @@ main{flex:1;min-height:0;position:relative}
 .field input[type=date]::-webkit-date-and-time-value{text-align:left}
 .err{color:var(--bad);font-size:13px}
 
+/* photo viewer */
+.preview.tap{border:0;width:100%;text-align:left;font:inherit;color:inherit}
+#viewer{position:fixed;inset:0;z-index:40;background:rgba(10,15,25,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  padding:calc(16px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+#viewer img{max-width:100%;max-height:calc(100% - 48px);object-fit:contain;border-radius:10px}
+#viewer .cap{color:#fff;font-family:var(--f-display);font-size:20px}
+#viewer .x{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));background:rgba(255,255,255,.15);color:#fff}
+
 /* toast */
 #toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);z-index:25;background:#1c2738;color:#fff;border-radius:12px;padding:10px 14px;
   font-size:14px;display:flex;gap:14px;align-items:center;opacity:0;pointer-events:none;transition:all .25s;max-width:calc(100% - 32px);box-sizing:border-box}
@@ -272,6 +280,7 @@ main{flex:1;min-height:0;position:relative}
 
 <div id="scrim"></div>
 <div id="sheet" role="dialog" aria-modal="true"><div class="sheet-in" id="sheetIn"></div></div>
+<div id="viewer" hidden role="dialog" aria-label="사진 크게 보기"><img alt=""><div class="cap"></div><button class="x" aria-label="닫기">✕</button></div>
 <div id="toast" role="status"><span id="toastMsg"></span><button id="toastAct" hidden></button></div>
 
 <input type="file" id="camIn" accept="image/*" capture="environment" hidden>
@@ -452,7 +461,7 @@ function writeErr(e){
   else toast("저장하지 못했어요. 잠시 뒤에 다시 해주세요.");
 }
 async function putItem(it){
-  const clean = { fridge: it.fridge, zone: it.zone, name: it.name, exp: it.exp || "", added: it.added || Date.now(), thumb: it.thumb || "" };
+  const clean = { fridge: it.fridge, zone: it.zone, name: it.name, exp: it.exp || "", added: it.added || Date.now(), thumb: it.thumb || "", photo: it.photo || "" };
   if (it.sample) clean.sample = true;
   if (state.db) {
     try { await state.db.collection("items").doc(it.id).set(clean); return true; } catch (e) { writeErr(e); return false; }
@@ -712,7 +721,10 @@ function dateQuick(input){
 function openEdit(id){
   const it = state.items.get(id); if (!it) return;
   openSheet("고치기", root => {
-    if (it.thumb) { const p = el("div","preview"); const im = new Image(); im.src = it.thumb; im.alt = ""; p.append(im, el("div","st","넣을 때 찍은 사진")); root.append(p); }
+    if (it.thumb) {
+      const p = el("button","preview tap"); p.type = "button"; const im = new Image(); im.src = it.photo || it.thumb; im.alt = "";
+      p.append(im, el("div","st","넣을 때 찍은 사진 · 누르면 크게 보여요")); p.onclick = () => showPhoto(it.photo || it.thumb, it.name); root.append(p);
+    }
     const name = el("input"); name.id = "e-name"; name.value = it.name || "";
     const exp = el("input"); exp.id = "e-exp"; exp.type = "date"; exp.value = it.exp || "";
     const fz = Z[it.zone] ? Z[it.zone].fridge : state.fridge;
@@ -745,7 +757,7 @@ const ICON_CAM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 const ICON_PIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>';
 let pendingZone = null;
 function openAdd(zid){
-  pendingZone = zid || null;
+  pendingZone = zid || null; pendingPhoto = "";
   openSheet("뭘 넣을까요?", root => {
     root.append(el("div","note","이름이랑 유통기한이 같이 보이게 찍어주세요. 글자를 읽어서 알맞은 칸에 넣어줄게요."));
     const g = el("div","big-btns");
@@ -772,64 +784,87 @@ async function squareThumb(file){
   return c.toDataURL("image/jpeg", .72);
 }
 
+let pendingPhoto = "";
 async function readPhoto(file){
   let thumb = "", big = null;
-  try { thumb = await squareThumb(file); big = (await shrink(file, 1600, .86)).blob; }
-  catch { toast("이 사진은 열 수 없어요. 다른 사진으로 해주세요."); return; }
+  try {
+    thumb = await squareThumb(file);
+    big = (await shrink(file, 1600, .86)).blob;
+    pendingPhoto = (await shrink(file, 560, .68)).url;
+  } catch { toast("이 사진은 열 수 없어요. 다른 사진으로 해주세요."); return; }
+  const blank = () => [{ name:"", expiry:"", zone: pendingZone || guessZone("") }];
   const ctl = new AbortController();
-  openSheet("사진 읽는 중", root => {
+  openSheet("사진 보는 중", root => {
     const p = el("div","preview"); const im = new Image(); im.src = thumb; im.alt = "";
     const st = el("div","st"); st.id = "ocrst"; st.innerHTML = '<span class="spin"></span>';
-    st.append("이름이랑 유통기한을 읽고 있어요. 조금만 기다려 주세요.");
+    st.append("뭔지 알아보고 있어요. 조금만 기다려 주세요.");
     p.append(im, st); root.append(p);
     const stop = el("button","btn ghost","그만하고 직접 적기");
-    stop.onclick = () => { ctl.abort(); showForm(thumb, [{ name:"", expiry:"", zone: pendingZone || guessZone("") }]); };
+    stop.onclick = () => { ctl.abort(); showForm(thumb, blank()); };
     root.append(stop);
   }, { abort: ctl });
 
+  // 1) claude.ai 안이면 Claude, 2) 아니면 Firebase의 Gemini, 3) 둘 다 안 되면 휴대폰 안 글자 인식
   let sample = null;
   try { sample = window.claude && window.claude.use ? await window.claude.use("sample") : null; } catch { sample = null; }
   if (ctl.signal.aborted) return;
-  if (!sample) {
-    let items = [];
-    try { items = await ocrLocal(big, ctl.signal); } catch { items = []; }
-    if (ctl.signal.aborted) return;
-    if (!items.length || (!items[0].name && !items[0].expiry)) { showForm(thumb, [{ name:"", expiry:"", zone: pendingZone || guessZone("") }], "글자를 잘 못 읽었어요. 직접 적어주세요."); return; }
-    showForm(thumb, items, "사진에서 읽어봤어요. 틀린 데가 있으면 고쳐주세요.");
+  let res = null, failMsg = "";
+  try {
+    if (sample) res = await sample.json(visionPrompt(), { images: big, signal: ctl.signal });
+    else if (aiModel()) res = await geminiJson(visionPrompt(), big);
+  } catch (e) {
+    if (e && e.code === "cancelled") return;
+    res = null;
+    failMsg = e && e.code === "rate_limited" ? "지금은 사진 보기를 너무 많이 했어요. 잠시 뒤에 다시 해주세요." : "";
+  }
+  if (ctl.signal.aborted) return;
+  if (res) {
+    const items = (res && Array.isArray(res.items) ? res.items : []).filter(x => x && typeof x === "object").map(x => ({
+      name: String(x.name || "").slice(0, 40),
+      expiry: /^\d{4}-\d{2}-\d{2}$/.test(String(x.expiry || "")) ? String(x.expiry) : "",
+      zone: Z[x.zone] && Z[x.zone].fridge === state.fridge ? x.zone : (pendingZone || guessZone(String(x.name || "")))
+    }));
+    if (!items.length) { showForm(thumb, blank(), "사진에서 식품을 못 알아봤어요. 직접 적어주세요."); return; }
+    showForm(thumb, items, items.some(x => !x.expiry) ? "유통기한이 안 보이는 건 비워뒀어요. 아는 날짜가 있으면 적어주세요." : "알아본 내용이 맞는지 확인하고 넣어주세요.");
     return;
   }
+  let items = [];
+  try { items = await ocrLocal(big, ctl.signal); } catch { items = []; }
+  if (ctl.signal.aborted) return;
+  if (!items.length || (!items[0].name && !items[0].expiry)) { showForm(thumb, blank(), failMsg || "뭔지 잘 모르겠어요. 직접 적어주세요."); return; }
+  showForm(thumb, items, "사진의 글자를 읽어봤어요. 틀린 데가 있으면 고쳐주세요.");
+}
 
+function visionPrompt(){
   const zlist = Object.values(Z).filter(z => z.fridge === state.fridge).map(z => z.id + ": " + z.full).join("\n");
-  const prompt =
-`사진은 엄마가 ${FRIDGES[state.fridge].name}에 넣으려는 식품이야. 포장이나 라벨에 적힌 식품 이름과 유통기한(소비기한)을 읽어줘.
+  return `사진은 엄마가 ${FRIDGES[state.fridge].name}에 넣으려는 식품이야. 포장된 제품일 수도 있고, 당근·사과·대파처럼 재료 자체일 수도 있어.
+포장이면 라벨의 식품 이름과 유통기한(소비기한)을 읽고, 재료 자체면 무엇인지 알아봐서 이름을 적어줘.
 오늘은 ${todayStr()}이야.
 규칙:
-- name: 엄마가 한눈에 알아볼 짧은 이름 (예: "서울우유", "해찬들 고추장", "까르보불닭"). 용량이나 광고 문구는 빼.
-- expiry: "YYYY-MM-DD". "26.03.15"처럼 연도가 두 자리면 2026-03-15. 연도가 없으면 오늘 이후 가장 가까운 날짜. "제조일로부터 N일" 같으면 제조일에 더해서 계산. 유통기한/소비기한이 안 보이면 null. 제조일자를 유통기한으로 쓰지 마.
+- name: 엄마가 한눈에 알아볼 짧은 한국어 이름 (예: "서울우유", "해찬들 고추장", "당근", "대파"). 용량이나 광고 문구는 빼.
+- expiry: "YYYY-MM-DD". "26.03.15"처럼 연도가 두 자리면 2026-03-15. 연도가 없으면 오늘 이후 가장 가까운 날짜. "제조일로부터 N일" 같으면 제조일에 더해서 계산. 사진에 날짜가 안 보이면 null (짐작해서 적지 마). 제조일자를 유통기한으로 쓰지 마.
 - zone: 아래 칸 중 이 식품을 두기 가장 알맞은 곳의 id 하나.${pendingZone ? " (엄마가 고른 칸: " + pendingZone + " — 특별한 이유 없으면 이걸로)" : ""}
 ${zlist}
 - 사진에 서로 다른 식품이 여러 개 보이면 각각 따로 넣어.
 - 식품이 안 보이면 items는 빈 배열.
 JSON만 답해: {"items":[{"name":"...","expiry":"YYYY-MM-DD" 또는 null,"zone":"id"}]}`;
-  try {
-    const res = await sample.json(prompt, { images: big, signal: ctl.signal });
-    if (ctl.signal.aborted) return;
-    let items = res && Array.isArray(res.items) ? res.items : [];
-    items = items.filter(x => x && typeof x === "object").map(x => ({
-      name: String(x.name || "").slice(0, 40),
-      expiry: /^\d{4}-\d{2}-\d{2}$/.test(String(x.expiry || "")) ? String(x.expiry) : "",
-      zone: Z[x.zone] && Z[x.zone].fridge === state.fridge ? x.zone : (pendingZone || guessZone(String(x.name || "")))
-    }));
-    if (!items.length) { showForm(thumb, [{ name:"", expiry:"", zone: pendingZone || guessZone("") }], "사진에서 식품 이름을 못 찾았어요. 직접 적어주세요."); return; }
-    showForm(thumb, items, items.some(x => !x.expiry) ? "유통기한이 안 보이는 건 비워뒀어요. 아는 날짜가 있으면 적어주세요." : "읽은 내용이 맞는지 확인하고 넣어주세요.");
-  } catch (e) {
-    if (e && e.code === "cancelled") return;
-    const msg = e && (e.code === "not_granted" || e.code === "sampling_disabled" || e.code === "images_unavailable") ? "글자 읽기를 허락하지 않아서 직접 적어주세요."
-      : e && e.code === "rate_limited" ? "지금은 글자 읽기를 너무 많이 했어요. 잠시 뒤에 다시 하거나 직접 적어주세요."
-      : e && e.code === "image_rejected" ? "이 사진은 읽을 수 없어요. 직접 적거나 다시 찍어주세요."
-      : "글자를 읽지 못했어요. 직접 적어주세요.";
-    showForm(thumb, [{ name:"", expiry:"", zone: pendingZone || guessZone("") }], msg);
-  }
+}
+
+/* Firebase AI Logic (무료 Gemini) — claude.ai 밖에서 사진 보기 */
+let aiModelP = null;
+function aiModel(){
+  const cfg = window.FIREBASE_CONFIG;
+  if (window.claude || !cfg || !cfg.projectId) return null;
+  if (!aiModelP) aiModelP = loadScript("vendor/firebase-ai.js").then(() => window.FridgeAI.model(cfg, "gemini-2.5-flash"));
+  return aiModelP;
+}
+async function geminiJson(prompt, blob){
+  let m;
+  try { m = await aiModel(); } catch (e) { aiModelP = null; throw e; }
+  const b64 = await new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.onerror = bad; r.readAsDataURL(blob); });
+  const out = await m.generateContent([prompt, { inlineData: { data: b64, mimeType: "image/jpeg" } }]);
+  const t = out.response.text();
+  return JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
 }
 
 /* 휴대폰 안에서 글자 읽기 (Tesseract) */
@@ -935,7 +970,7 @@ function showForm(thumb, items, msg){
       go.disabled = true;
       let lastZone = null;
       for (const c of ready) {
-        const it = { id: newId(), fridge: fk, zone: c.sel.value, name: c.name.value.trim(), exp: c.exp.value, added: Date.now(), thumb: thumb || "" };
+        const it = { id: newId(), fridge: fk, zone: c.sel.value, name: c.name.value.trim(), exp: c.exp.value, added: Date.now(), thumb: thumb || "", photo: thumb ? pendingPhoto : "" };
         state.fresh.add(it.id);
         if (!(await putItem(it))) { go.disabled = false; return; }
         lastZone = it.zone;
@@ -981,6 +1016,14 @@ function flashZone(zid){
   if (!b) return;
   b.classList.remove("flash"); void b.offsetWidth; b.classList.add("flash");
 }
+
+/* ============ 사진 크게 보기 ============ */
+function showPhoto(src, name){
+  const v = $("#viewer"); v.querySelector("img").src = src; v.querySelector("img").alt = name || ""; v.querySelector(".cap").textContent = name || "";
+  v.hidden = false;
+}
+$("#viewer").onclick = () => { $("#viewer").hidden = true; };
+addEventListener("keydown", e => { if (e.key === "Escape") $("#viewer").hidden = true; });
 
 /* ============ 토스트 ============ */
 let toastT = 0;
