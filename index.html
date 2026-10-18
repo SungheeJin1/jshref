@@ -208,6 +208,7 @@ main{flex:1;min-height:0;position:relative}
 .btn:disabled{opacity:.5}
 .btns{display:flex;gap:8px}.btns .btn{flex:1}
 .foot{position:sticky;bottom:0;z-index:2;background:var(--card);padding-top:10px;box-shadow:0 -10px 12px -10px rgba(20,30,45,.18)}
+.foot>.btn{width:100%}
 .hbtn{border:0;background:var(--blue);color:#fff;font-weight:600;font-size:15px;border-radius:999px;padding:8px 16px;margin-left:auto;white-space:nowrap}
 .hbtn:disabled{opacity:.5}
 .field input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-height:46px;max-width:100%;text-align:left}
@@ -755,22 +756,37 @@ JSON만 답해: {"items":[{"name":"...","expiry":"YYYY-MM-DD" 또는 null,"zone"
 
 function showForm(thumb, items, msg){
   const fk = state.fridge;
-  openSheet(items.length > 1 ? items.length + "개 넣기" : "이렇게 넣을까요?", root => {
+  openSheet("이렇게 넣을까요?", root => {
     if (thumb) { const p = el("div","preview"); const im = new Image(); im.src = thumb; im.alt = ""; p.append(im, el("div","st", msg || "읽은 내용이 맞는지 확인해 주세요.")); root.append(p); }
     else if (msg) root.append(el("div","note", msg));
     const cards = [];
-    items.forEach((x, i) => {
+    const list = el("div"); list.style.cssText = "display:flex;flex-direction:column;gap:12px";
+    let seq = 0, built = false;
+    const syncRm = () => cards.forEach(r => { r.rm.hidden = cards.length < 2; });
+    const addCard = x => {
+      const i = seq++;
       const c = el("div","card");
-      const name = el("input"); name.id = "n" + i; name.placeholder = "예: 서울우유"; name.value = x.name;
+      const name = el("input"); name.id = "n" + i; name.placeholder = "예: 키위"; name.value = x.name;
       const exp = el("input"); exp.id = "d" + i; exp.type = "date"; exp.value = x.expiry || "";
       const sel = zoneSelect(x.zone, fk);
       name.addEventListener("change", () => { if (!pendingZone && !x.touched) sel.value = guessZone(name.value); });
       sel.addEventListener("change", () => { x.touched = true; });
-      c.append(field("이름", name), field("유통기한", exp, dateQuick(exp)), field("어디에 넣을까요?", sel));
-      if (items.length > 1) { const rm = el("button","rm","빼기"); rm.onclick = () => { c.remove(); cards.splice(cards.indexOf(ref),1); }; c.append(rm); }
-      const ref = { name, exp, sel }; cards.push(ref);
-      root.append(c);
-    });
+      if (built) name.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); name.blur(); go.click(); } });
+      const rm = el("button","rm","빼기"); rm.type = "button";
+      const ref = { name, exp, sel, rm };
+      rm.onclick = () => { if (cards.length < 2) return; c.remove(); cards.splice(cards.indexOf(ref), 1); syncRm(); };
+      c.append(field("이름", name), field("유통기한", exp, dateQuick(exp)), field("어디에 넣을까요?", sel), rm);
+      cards.push(ref); list.append(c); syncRm();
+      return ref;
+    };
+    items.forEach(addCard);
+    root.append(list);
+    const more = el("button","btn ghost","+ 하나 더 적기"); more.type = "button";
+    more.onclick = () => {
+      const r = addCard({ name: "", expiry: "", zone: pendingZone || guessZone("") });
+      r.name.scrollIntoView({ block: "center", behavior: "smooth" }); r.name.focus();
+    };
+    root.append(more);
     const err = el("div","err"); root.append(err);
     const go = el("button","btn", FRIDGES[fk].name + "에 넣기");
     go.onclick = async () => {
@@ -791,6 +807,7 @@ function showForm(thumb, items, msg){
     };
     go.dataset.primary = "넣기";
     const foot = el("div","foot"); foot.append(go); root.append(foot);
+    built = true;
   });
   setTimeout(() => { const n = $("#n0"); if (n && !n.value) n.focus(); }, 350);
 }
