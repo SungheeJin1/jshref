@@ -855,7 +855,7 @@ let aiModelP = null;
 function aiModel(){
   const cfg = window.FIREBASE_CONFIG;
   if (window.claude || !cfg || !cfg.projectId) return null;
-  if (!aiModelP) aiModelP = loadScript("vendor/firebase-ai.js").then(() => window.FridgeAI.model(cfg, "gemini-2.5-flash"));
+  if (!aiModelP) aiModelP = loadScript("vendor/firebase-ai.js").then(() => window.FridgeAI.model(cfg, "gemini-flash-latest"));
   return aiModelP;
 }
 async function geminiJson(prompt, blob){
