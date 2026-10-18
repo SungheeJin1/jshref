@@ -410,17 +410,26 @@ async function initStore(){
       await loadScript(FB + "firebase-firestore-compat.js");
       firebase.initializeApp(cfg);
       const fs = firebase.firestore();
-      state.fs = fs; state.mode = "shared";
-      fs.collection("items").onSnapshot(snap => {
+      state.fs = fs; state.mode = "loading";
+      let got = false;
+      fs.collection("items").onSnapshot({ includeMetadataChanges: true }, snap => {
+        got = true; state.mode = snap.metadata.fromCache ? "syncing" : "shared";
         const m = new Map();
         snap.forEach(d => m.set(d.id, Object.assign({ id: d.id }, d.data())));
         state.items = m; renderAll();
-      }, () => { state.mode = "error"; renderAll(); });
+      }, () => {
+        if (got) { state.mode = "error"; renderAll(); return; }
+        // 공유 저장소에 못 붙으면 이 휴대폰에 저장하면서라도 쓸 수 있게
+        state.fs = null; state.fsFailed = true; startLocal();
+      });
       seedFirestore(fs);
       return;
     } catch { state.fs = null; }
   }
-  state.mode = "local";
+  startLocal();
+}
+function startLocal(){
+  state.mode = "local"; state.items = new Map();
   let saved = null;
   try { saved = localStorage.getItem(LS); } catch {}
   (saved == null ? SEEDS : lsLoad()).forEach(it => state.items.set(it.id, it));
@@ -618,7 +627,7 @@ function renderStat(){
   st.append("모두 "); st.append(el("b",null,all.length+"개"));
   if (bad) { st.append(" · "); st.append(el("b","bad","지난 것 "+bad)); }
   if (warn) { st.append(" · "); st.append(el("b","warn","3일 안에 "+warn)); }
-  $("#mode").textContent = state.mode === "local" ? "이 휴대폰에만 저장돼요" : state.mode === "loading" ? "불러오는 중…" : state.mode === "error" ? "연결이 끊겼어요" : "가족이 같이 봐요";
+  $("#mode").textContent = state.mode === "local" ? (state.fsFailed ? "가족 공유 연결 안 됨 · 이 휴대폰에만 저장" : "이 휴대폰에만 저장돼요") : state.mode === "loading" ? "불러오는 중…" : state.mode === "syncing" ? "가족 공유 연결 중…" : state.mode === "error" ? "연결이 끊겼어요" : "가족이 같이 봐요";
 }
 function renderAll(){
   renderStat(); renderFridge();
