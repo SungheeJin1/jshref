@@ -62,7 +62,6 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #app{height:100%;display:flex;flex-direction:column}
 header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-block:10px 6px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-header .brand{font-family:var(--f-display);color:var(--blue);font-size:20px;margin-right:auto;white-space:nowrap}
 .seg{display:inline-flex;background:var(--blue-soft);border-radius:999px;padding:3px}
 .seg button{border:0;background:transparent;padding:6px 12px;border-radius:999px;font-size:14px;font-weight:500;color:var(--muted);white-space:nowrap}
 .seg button[aria-pressed="true"]{background:var(--card);color:var(--blue);box-shadow:0 1px 3px rgba(29,90,214,.18)}
@@ -241,7 +240,7 @@ main{flex:1;min-height:0;position:relative}
 #toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
 #toast button{border:0;background:transparent;color:#9cc0ff;font-weight:600;padding:0;white-space:nowrap}
 
-@media (max-width:420px){header .brand{font-size:18px;width:100%}.seg button{padding:6px 10px;font-size:13px}}
+@media (max-width:420px){.seg button{padding:6px 10px;font-size:13px}}
 @media (prefers-reduced-motion:reduce){
   #fridge,.door-front,.door-in,.drawer-front,#intro,#sheet{transition:none!important}
   #intro h1,.chip.new{animation:none}
@@ -257,7 +256,6 @@ main{flex:1;min-height:0;position:relative}
 
 <div id="app">
   <header>
-    <div class="brand">엄마 냉장고에 뭐 있어</div>
     <div class="seg" role="group" aria-label="냉장고 고르기">
       <button id="tab-main" aria-pressed="true">냉장고</button>
       <button id="tab-kimchi" aria-pressed="false">김치냉장고</button>
@@ -605,12 +603,6 @@ function renderList(){
   q.oninput = () => { state.q = q.value; drawRows(); };
   const box = el("div");
   wrap.append(f, q, box);
-  const hasSample = all.some(it => it.sample);
-  if (hasSample) {
-    const n = el("div","note");
-    n.append(el("span",null,"엄마 냉장고 사진에서 보이는 것들을 미리 넣어 놨어요. 유통기한은 하나씩 눌러서 적어주세요."));
-    wrap.insertBefore(n, f);
-  }
   function drawRows(){
     box.innerHTML = "";
     const qq = state.q.trim();
@@ -636,7 +628,7 @@ function renderStat(){
   st.append("모두 "); st.append(el("b",null,all.length+"개"));
   if (bad) { st.append(" · "); st.append(el("b","bad","지난 것 "+bad)); }
   if (warn) { st.append(" · "); st.append(el("b","warn","3일 안에 "+warn)); }
-  $("#mode").textContent = state.mode === "local" ? (state.fsFailed ? "가족 공유 연결 안 됨 · 이 휴대폰에만 저장" : "이 휴대폰에만 저장돼요") : state.mode === "loading" ? "불러오는 중…" : state.mode === "syncing" ? "가족 공유 연결 중…" : state.mode === "error" ? "연결이 끊겼어요" : "가족이 같이 봐요";
+  $("#mode").textContent = state.mode === "local" ? (state.fsFailed ? "가족 공유 연결 안 됨 · 이 휴대폰에만 저장" : "이 휴대폰에만 저장돼요") : state.mode === "loading" ? "" : state.mode === "syncing" ? "" : state.mode === "error" ? "연결이 끊겼어요" : "";
 }
 function renderAll(){
   renderStat(); renderFridge();
