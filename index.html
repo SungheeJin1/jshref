@@ -1,9 +1,21 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4f8fd">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="엄마 냉장고">
 <title>엄마 냉장고에 뭐 있어</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gaegu:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
 <style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0}
+img{max-width:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 /* Layout: one-screen app — intro card, then the real 4-door fridge fills the stage and swings open; list view and bottom sheets sit on top. */
 :root{
   --bg:#f4f8fd;          /* 아주 살짝 파란 기가 도는 흰색 */
@@ -131,7 +143,7 @@ main{flex:1;min-height:0;position:relative}
 .drawer-front{position:absolute;left:var(--dwl,var(--dw));width:var(--cw);bottom:0;height:100%;z-index:5;border-radius:6px;
   background:linear-gradient(100deg,var(--door) 0%,var(--door-hi) 45%,var(--door) 100%);transition:height .7s cubic-bezier(.3,.7,.2,1) .25s;box-shadow:0 6px 18px rgba(30,20,15,.25)}
 .drawer-front::after{content:"";position:absolute;left:30%;right:30%;top:10px;height:3px;border-radius:2px;background:rgba(255,255,255,.16)}
-.open .drawer-front{height:14%}
+.open .drawer-front{height:max(26%,30px)}
 /* 김치냉장고: 베이지 그레이 몸체, 서랍 위 검은 손잡이 홈 */
 #fridge.k-greige{--door:#cbc7c0;--door-hi:#dcd8d1}
 .k-greige .door-front,.k-greige .drawer-front{box-shadow:inset 0 0 0 1px rgba(0,0,0,.06),0 6px 18px rgba(60,50,40,.18)}
@@ -227,6 +239,8 @@ main{flex:1;min-height:0;position:relative}
   #intro h1,.chip.new{animation:none}
 }
 </style>
+</head>
+<body>
 
 <div id="intro" role="button" tabindex="0" aria-label="눌러서 냉장고 열기">
   <h1>엄마 냉장고에 뭐 있어</h1>
@@ -263,6 +277,7 @@ main{flex:1;min-height:0;position:relative}
 <input type="file" id="camIn" accept="image/*" capture="environment" hidden>
 <input type="file" id="picIn" accept="image/*" hidden>
 
+<script src="firebase-config.js"></script>
 <script>
 (() => {
 "use strict";
@@ -361,6 +376,19 @@ function lsLoad(){ try { return JSON.parse(localStorage.getItem(LS) || "[]"); } 
 function lsSave(){ try { localStorage.setItem(LS, JSON.stringify([...state.items.values()])); } catch {} }
 const newId = () => "i" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 
+const SEEDS = [
+  ["main","s1","고춧가루"],["main","egg","계란"],["main","s3","해찬들 고추장"],["main","s3","김치"],
+  ["main","s4","오이지"],["main","s4","나물무침"],["main","s4","장조림"],["main","s4","감"],
+  ["main","vegL","양배추"],["main","multiL","일회용 소스"],["main","dl2","상추"],["main","dl3","초고추장"],
+  ["main","dl3","백설 매실청"],["main","dl3","멸치액젓"],["main","dl3","맛술"],["main","dr1","토마토소스"],
+  ["main","dr2","백설 굴소스"],["main","dr2","마요네즈"],["main","dr3","서울우유"],["main","dr3","자연은 복숭아주스"],
+  ["main","dr3","칠성사이다"],["main","fzL1","까르보불닭"],
+  ["kimchi","k1","락앤락 반찬통"],["kimchi","k2","빵"],["kimchi","k3","떡"],["kimchi","k3","새우젓"],
+  ["kimchi","k3","참깨"],["kimchi","kdr","반찬통"]
+].map(([fridge, zone, name], i) => ({ id: "seed" + String(i + 1).padStart(2, "0"), fridge, zone, name, exp: "", added: 1792310000000 + i, thumb: "", sample: true }));
+const loadScript = src => new Promise((ok, bad) => { const t = document.createElement("script"); t.src = src; t.onload = ok; t.onerror = bad; document.head.append(t); });
+const FB = "vendor/";
+
 async function initStore(){
   let db = null;
   if (window.claude && typeof window.claude.use === "function") {
@@ -373,14 +401,44 @@ async function initStore(){
       snap.docs.forEach(d => { if (d.exists) m.set(d.id, Object.assign({ id: d.id }, d.data())); });
       state.items = m; renderAll();
     }, () => { state.mode = "error"; renderAll(); });
-  } else {
-    state.mode = "local";
-    lsLoad().forEach(it => state.items.set(it.id, it));
-    renderAll();
+    return;
   }
+  const cfg = window.FIREBASE_CONFIG;
+  if (!window.claude && cfg && cfg.projectId) {
+    try {
+      await loadScript(FB + "firebase-app-compat.js");
+      await loadScript(FB + "firebase-firestore-compat.js");
+      firebase.initializeApp(cfg);
+      const fs = firebase.firestore();
+      state.fs = fs; state.mode = "shared";
+      fs.collection("items").onSnapshot(snap => {
+        const m = new Map();
+        snap.forEach(d => m.set(d.id, Object.assign({ id: d.id }, d.data())));
+        state.items = m; renderAll();
+      }, () => { state.mode = "error"; renderAll(); });
+      seedFirestore(fs);
+      return;
+    } catch { state.fs = null; }
+  }
+  state.mode = "local";
+  let saved = null;
+  try { saved = localStorage.getItem(LS); } catch {}
+  (saved == null ? SEEDS : lsLoad()).forEach(it => state.items.set(it.id, it));
+  if (saved == null) lsSave();
+  renderAll();
+}
+async function seedFirestore(fs){
+  try {
+    const meta = fs.collection("meta").doc("seeded");
+    if ((await meta.get()).exists) return;
+    const b = fs.batch();
+    SEEDS.forEach(it => { const { id, ...rest } = it; b.set(fs.collection("items").doc(id), rest); });
+    b.set(meta, { at: Date.now() });
+    await b.commit();
+  } catch {}
 }
 function writeErr(e){
-  if (e && e.code === "invalid_argument") { state.readOnly = true; toast("이 링크로는 볼 수만 있어요. 넣고 빼려면 편집 권한이 필요해요."); }
+  if (e && (e.code === "invalid_argument" || e.code === "permission-denied")) { state.readOnly = true; toast("이 링크로는 볼 수만 있어요. 넣고 빼려면 편집 권한이 필요해요."); }
   else if (e && e.code === "quota_exceeded") toast("저장 공간이 꽉 찼어요. 다 먹은 걸 먼저 빼주세요.");
   else toast("저장하지 못했어요. 잠시 뒤에 다시 해주세요.");
 }
@@ -390,10 +448,14 @@ async function putItem(it){
   if (state.db) {
     try { await state.db.collection("items").doc(it.id).set(clean); return true; } catch (e) { writeErr(e); return false; }
   }
+  if (state.fs) {
+    try { await state.fs.collection("items").doc(it.id).set(clean); return true; } catch (e) { writeErr(e); return false; }
+  }
   state.items.set(it.id, Object.assign({ id: it.id }, clean)); lsSave(); renderAll(); return true;
 }
 async function delItem(id){
   if (state.db) { try { await state.db.collection("items").doc(id).delete(); return true; } catch (e) { writeErr(e); return false; } }
+  if (state.fs) { try { await state.fs.collection("items").doc(id).delete(); return true; } catch (e) { writeErr(e); return false; } }
   state.items.delete(id); lsSave(); renderAll(); return true;
 }
 
@@ -556,7 +618,7 @@ function renderStat(){
   st.append("모두 "); st.append(el("b",null,all.length+"개"));
   if (bad) { st.append(" · "); st.append(el("b","bad","지난 것 "+bad)); }
   if (warn) { st.append(" · "); st.append(el("b","warn","3일 안에 "+warn)); }
-  $("#mode").textContent = state.mode === "local" ? "이 기기에만 저장돼요" : state.mode === "loading" ? "불러오는 중…" : state.mode === "error" ? "연결이 끊겼어요" : "가족이 같이 봐요";
+  $("#mode").textContent = state.mode === "local" ? "이 휴대폰에만 저장돼요" : state.mode === "loading" ? "불러오는 중…" : state.mode === "error" ? "연결이 끊겼어요" : "가족이 같이 봐요";
 }
 function renderAll(){
   renderStat(); renderFridge();
@@ -708,7 +770,7 @@ async function readPhoto(file){
   const ctl = new AbortController();
   openSheet("사진 읽는 중", root => {
     const p = el("div","preview"); const im = new Image(); im.src = thumb; im.alt = "";
-    const st = el("div","st"); st.innerHTML = '<span class="spin"></span>';
+    const st = el("div","st"); st.id = "ocrst"; st.innerHTML = '<span class="spin"></span>';
     st.append("이름이랑 유통기한을 읽고 있어요. 조금만 기다려 주세요.");
     p.append(im, st); root.append(p);
     const stop = el("button","btn ghost","그만하고 직접 적기");
@@ -719,7 +781,14 @@ async function readPhoto(file){
   let sample = null;
   try { sample = window.claude && window.claude.use ? await window.claude.use("sample") : null; } catch { sample = null; }
   if (ctl.signal.aborted) return;
-  if (!sample) { showForm(thumb, [{ name:"", expiry:"", zone: pendingZone || guessZone("") }], "여기서는 글자를 읽을 수 없어서 직접 적어주세요."); return; }
+  if (!sample) {
+    let items = [];
+    try { items = await ocrLocal(big, ctl.signal); } catch { items = []; }
+    if (ctl.signal.aborted) return;
+    if (!items.length || (!items[0].name && !items[0].expiry)) { showForm(thumb, [{ name:"", expiry:"", zone: pendingZone || guessZone("") }], "글자를 잘 못 읽었어요. 직접 적어주세요."); return; }
+    showForm(thumb, items, "사진에서 읽어봤어요. 틀린 데가 있으면 고쳐주세요.");
+    return;
+  }
 
   const zlist = Object.values(Z).filter(z => z.fridge === state.fridge).map(z => z.id + ": " + z.full).join("\n");
   const prompt =
@@ -752,6 +821,68 @@ JSON만 답해: {"items":[{"name":"...","expiry":"YYYY-MM-DD" 또는 null,"zone"
       : "글자를 읽지 못했어요. 직접 적어주세요.";
     showForm(thumb, [{ name:"", expiry:"", zone: pendingZone || guessZone("") }], msg);
   }
+}
+
+/* 휴대폰 안에서 글자 읽기 (Tesseract) */
+let ocrWorker = null;
+async function ocrLocal(blob, signal){
+  const st = $("#ocrst");
+  const say = t => { if (st) { st.innerHTML = '<span class="spin"></span>'; st.append(t); } };
+  if (!window.Tesseract) { say("글자 읽을 준비 중이에요. 처음 한 번은 조금 걸려요."); await loadScript("vendor/tesseract.min.js"); }
+  if (signal.aborted) return [];
+  if (!ocrWorker) {
+    ocrWorker = await Tesseract.createWorker(["kor","eng"], 1, {
+      workerPath: "vendor/worker.min.js", corePath: "vendor/", langPath: "vendor/lang",
+      logger: m => { if (m.status === "recognizing text") say("글자 읽는 중 " + Math.round(m.progress * 100) + "%"); }
+    });
+  }
+  if (signal.aborted) return [];
+  // 큰 상품 이름과 작은 날짜 글씨를 둘 다 잡으려고 크기를 바꿔 세 번 읽어요
+  const bmp = await createImageBitmap(blob);
+  const texts = [], lines = [];
+  for (const k of [1, .5, .28]) {
+    if (signal.aborted) return [];
+    const c = document.createElement("canvas"); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const { data } = await ocrWorker.recognize(c);
+    texts.push(data.text || "");
+    (data.lines || []).forEach(l => lines.push({ text: l.text, confidence: l.confidence, h: l.bbox ? (l.bbox.y1 - l.bbox.y0) / k : 1 }));
+  }
+  return [parseLabel({ text: texts.join("\n"), lines })];
+}
+function parseLabel(data){
+  const text = (data.text || "").replace(/[ \t]+/g, " ");
+  const now = parseD(todayStr());
+  const found = [];
+  const push = (y, m, d, at) => {
+    y = +y; m = +m; d = +d; if (y < 100) y += 2000;
+    if (m < 1 || m > 12 || d < 1 || d > 31 || y < 2000 || y > 2100) return;
+    const before = text.slice(Math.max(0, at - 14), at);
+    found.push({ s: y + "-" + String(m).padStart(2,"0") + "-" + String(d).padStart(2,"0"),
+      key: /유통|소비|까지|EXP|exp|BB|Best/.test(before) || /^.{0,12}까지/.test(text.slice(at)), mfg: /제조|포장|생산|MFG/.test(before) });
+  };
+  let r;
+  const R1 = /(20\d{2})\s*[.\-\/년]\s*(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})/g;
+  while ((r = R1.exec(text))) push(r[1], r[2], r[3], r.index);
+  const R2 = /(^|[^\d])(\d{2})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})(?!\d)/g;
+  while ((r = R2.exec(text))) push(r[2], r[3], r[4], r.index + r[1].length);
+  const R3 = /(^|[^\d])(20\d{2})(\d{2})(\d{2})(?!\d)/g;
+  while ((r = R3.exec(text))) push(r[2], r[3], r[4], r.index + r[1].length);
+  const pick = found.find(f => f.key) || found.filter(f => !f.mfg).sort((a, b) => b.s.localeCompare(a.s))[0] || null;
+  const SKIP = /유통|소비|제조|원재료|원료|영양|보관|kcal|함량|성분|반품|교환|용량|주소|판매|고객|소재지|품목|식품유형|내용량|알레르기|섭취|냉장|냉동|주의/;
+  let best = "", bestH = 0;
+  (data.lines || []).forEach(l => {
+    const t = (l.text || "").replace(/[^가-힣A-Za-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+    const hangul = (t.match(/[가-힣]/g) || []).length;
+    const ratio = hangul / Math.max(1, t.replace(/ /g, "").length);
+    const conf = l.confidence || 0;
+    if (hangul < 2 || ratio < .5 || SKIP.test(t) || conf < 50) return;
+    // 크게, 또렷하게, 한글 위주로 적힌 줄을 이름으로
+    const score = (l.h || 1) * ratio * conf;
+    if (score > bestH) { bestH = score; best = t; }
+  });
+  best = best.slice(0, 24);
+  return { name: best, expiry: pick ? pick.s : "", zone: pendingZone || guessZone(best) };
 }
 
 function showForm(thumb, items, msg){
@@ -903,3 +1034,5 @@ else {
 }
 })();
 </script>
+</body>
+</html>
