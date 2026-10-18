@@ -66,7 +66,7 @@ main{flex:1;min-height:0;position:relative}
   transform:scale(.46);opacity:0;transition:transform .95s cubic-bezier(.22,.9,.25,1),opacity .4s ease;font-size:clamp(9px,calc(var(--cw)*.046),13px)}
 #fridge.shown{opacity:1}
 #fridge.zoom{transform:none}
-.section{position:relative;display:grid;grid-template-columns:var(--dw) var(--cw) var(--dw);grid-template-rows:minmax(0,1fr);min-height:0;perspective:1500px}
+.section{position:relative;display:grid;grid-template-columns:var(--dwl,var(--dw)) var(--cw) var(--dw);grid-template-rows:minmax(0,1fr);min-height:0;perspective:1500px}
 .section>.cabinet,.section>.door-in{grid-row:1}
 .cabinet{grid-column:2;position:relative;display:flex;flex-direction:column;background:linear-gradient(180deg,var(--liner),var(--liner-2));
   border:5px solid var(--door);border-radius:6px;box-shadow:inset 0 0 18px rgba(40,60,80,.12);overflow:hidden;min-height:0}
@@ -121,17 +121,23 @@ main{flex:1;min-height:0;position:relative}
 .door-front{position:absolute;top:0;bottom:0;width:calc(var(--cw)/2);z-index:5;border-radius:6px;
   background:linear-gradient(100deg,var(--door) 0%,var(--door-hi) 45%,var(--door) 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 6px 18px rgba(30,20,15,.25);
   transition:transform .42s cubic-bezier(.55,0,.9,.55);backface-visibility:hidden}
-.door-front.l{left:var(--dw);transform-origin:left center}
-.door-front.r{left:calc(var(--dw) + var(--cw)/2);transform-origin:right center}
+.door-front.l{left:var(--dwl,var(--dw));transform-origin:left center}
+.door-front.r{left:calc(var(--dwl,var(--dw)) + var(--cw)/2);transform-origin:right center}
+.door-front.single{left:var(--dwl,var(--dw));width:var(--cw);transform-origin:right center}
 .door-front.l::after,.door-front.r::after{content:"";position:absolute;top:8%;bottom:8%;width:3px;border-radius:2px;background:linear-gradient(180deg,transparent,rgba(255,255,255,.14),transparent)}
 .door-front.l::after{right:5px}.door-front.r::after{left:5px}
-.door-front.full{width:var(--cw);left:var(--dw)}
 .open .door-front.l{transform:rotateY(-90deg)}
-.open .door-front.r{transform:rotateY(90deg)}
-.drawer-front{position:absolute;left:var(--dw);width:var(--cw);bottom:0;height:100%;z-index:5;border-radius:6px;
+.open .door-front.r,.open .door-front.single{transform:rotateY(90deg)}
+.drawer-front{position:absolute;left:var(--dwl,var(--dw));width:var(--cw);bottom:0;height:100%;z-index:5;border-radius:6px;
   background:linear-gradient(100deg,var(--door) 0%,var(--door-hi) 45%,var(--door) 100%);transition:height .7s cubic-bezier(.3,.7,.2,1) .25s;box-shadow:0 6px 18px rgba(30,20,15,.25)}
 .drawer-front::after{content:"";position:absolute;left:30%;right:30%;top:10px;height:3px;border-radius:2px;background:rgba(255,255,255,.16)}
 .open .drawer-front{height:14%}
+/* 김치냉장고: 베이지 그레이 몸체, 서랍 위 검은 손잡이 홈 */
+#fridge.k-greige{--door:#cbc7c0;--door-hi:#dcd8d1}
+.k-greige .door-front,.k-greige .drawer-front{box-shadow:inset 0 0 0 1px rgba(0,0,0,.06),0 6px 18px rgba(60,50,40,.18)}
+.k-greige .door-front.single::after{display:none}
+.k-greige .drawer-front::after{left:0;right:0;top:0;height:6px;border-radius:6px 6px 0 0;background:#2b2523}
+.k-greige .door-in{box-shadow:inset 0 0 0 3px #eceae6;background:linear-gradient(180deg,#fdfdfc,#f1f1ef)}
 
 /* ---------- FAB ---------- */
 .fab{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:8;border:0;background:var(--blue);color:#fff;
@@ -285,10 +291,10 @@ zone("multiR","멀티수납코너","멀티수납코너 (오른쪽)","multi","mai
   zone("fdr"+i,i+"칸","냉동실 오른쪽 문 "+i+"칸","bin","main","냉동실 문");
 });
 // 김치냉장고
-zone("ktl1","상칸 왼쪽 위","상칸 왼쪽 위","kim","kimchi","김치냉장고 상칸");
-zone("ktl2","상칸 왼쪽 아래","상칸 왼쪽 아래","kim","kimchi","김치냉장고 상칸");
-zone("ktr1","상칸 오른쪽 위","상칸 오른쪽 위","kim","kimchi","김치냉장고 상칸");
-zone("ktr2","상칸 오른쪽 아래","상칸 오른쪽 아래","kim","kimchi","김치냉장고 상칸");
+zone("k1","1단 선반","김치냉장고 상칸 1단 선반","shelf","kimchi","김치냉장고 상칸");
+zone("k2","2단 선반","김치냉장고 상칸 2단 선반","shelf","kimchi","김치냉장고 상칸");
+zone("k3","3단 선반","김치냉장고 상칸 3단 선반","shelf","kimchi","김치냉장고 상칸");
+zone("kdr","상칸 서랍","김치냉장고 상칸 안쪽 서랍","drawer","kimchi","김치냉장고 상칸");
 zone("kmid","중칸 서랍","김치냉장고 중칸 서랍","drawer","kimchi","김치냉장고 서랍");
 zone("kbot","하칸 서랍","김치냉장고 하칸 서랍","drawer","kimchi","김치냉장고 서랍");
 
@@ -312,13 +318,17 @@ const FRIDGES = {
     ]
   },
   kimchi: {
-    name: "김치냉장고", aspect: .66, minAspect: .42, doorRatio: .26,
+    name: "김치냉장고", aspect: .6, minAspect: .4, doorRatio: .32, sides: 1, theme: "k-greige",
     sections: [
-      { flex: 52, panel: [["상칸","-1°"],["중칸","-1°"],["하칸","0°"]],
-        rows: [1,2].map(i => ({ h: 1, split: true, cells: ["ktl"+i,"ktr"+i] })),
-        doorL: [], doorR: [] },
-      { flex: 24, drawer: true, rows: [{ h: 1, cells: ["kmid"] }] },
-      { flex: 24, drawer: true, rows: [{ h: 1, cells: ["kbot"] }] }
+      { flex: 60, single: true,
+        rows: [
+          { h: 1.05, cells: ["k1"] },
+          { h: 1.1,  cells: ["k2"] },
+          { h: 1,    cells: ["k3"] },
+          { h: .95,  cells: ["kdr"] }
+        ] },
+      { flex: 20, drawer: true, rows: [{ h: 1, cells: ["kmid"] }] },
+      { flex: 20, drawer: true, rows: [{ h: 1, cells: ["kbot"] }] }
     ]
   }
 };
@@ -387,7 +397,7 @@ const zoneEls = new Map();
 function buildFridge(key){
   const cfg = FRIDGES[key];
   fridgeEl.innerHTML = ""; zoneEls.clear();
-  fridgeEl.className = "";
+  fridgeEl.className = cfg.theme || "";
   cfg.sections.forEach(sec => {
     const s = el("div","section"); s.style.flex = sec.flex + " 1 0";
     const cab = el("div","cabinet");
@@ -409,6 +419,9 @@ function buildFridge(key){
     cab.append(rows); s.append(cab);
     if (sec.drawer) {
       s.append(el("div","drawer-front"));
+    } else if (sec.single) {
+      const d = el("div","door-in r"); (sec.doorR || []).forEach(id => d.append(zoneBtn(id)));
+      s.append(d, el("div","door-front single"));
     } else {
       ["l","r"].forEach(side => {
         const ids = side === "l" ? sec.doorL : sec.doorR;
@@ -437,11 +450,13 @@ function layout(){
   const st = $("#stage");
   const W = st.clientWidth - 24, H = st.clientHeight - 76 - 16;
   if (W <= 0 || H <= 0) return;
-  const k = 1 + 2 * cfg.doorRatio;
+  const sides = cfg.sides || 2;
+  const k = 1 + sides * cfg.doorRatio;
   let cw = Math.min(W / k, H * cfg.aspect);
   const h = Math.min(H, cw / cfg.minAspect);
   fridgeEl.style.setProperty("--cw", cw + "px");
   fridgeEl.style.setProperty("--dw", (cw * cfg.doorRatio) + "px");
+  fridgeEl.style.setProperty("--dwl", sides === 2 ? (cw * cfg.doorRatio) + "px" : "0px");
   fridgeEl.style.height = h + "px";
 }
 addEventListener("resize", layout);
@@ -759,9 +774,11 @@ function guessZone(name){
   const n = name || "";
   const has = (...w) => w.some(x => n.includes(x));
   if (state.fridge === "kimchi") {
-    if (has("무","배추","감자","양파","당근","사과","배","과일","채소")) return "kmid";
-    if (has("고기","생선","육","돼지","소고기","닭")) return "kbot";
-    return "ktl1";
+    if (has("김치","깍두기","총각","동치미","젓","장아찌")) return "kmid";
+    if (has("무","배추","감자","양파","당근","사과","배","과일","채소")) return "kbot";
+    if (has("반찬","통")) return "kdr";
+    if (has("떡","깨","가루","쌀","곡","콩")) return "k3";
+    return "k2";
   }
   if (has("계란","달걀","메추리")) return "egg";
   if (has("우유","주스","사이다","콜라","물","음료","요구르트","두유")) return "dr3";
