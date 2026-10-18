@@ -207,6 +207,11 @@ main{flex:1;min-height:0;position:relative}
 .btn.danger{background:#fde7e4;color:var(--bad)}
 .btn:disabled{opacity:.5}
 .btns{display:flex;gap:8px}.btns .btn{flex:1}
+.foot{position:sticky;bottom:0;z-index:2;background:var(--card);padding-top:10px;box-shadow:0 -10px 12px -10px rgba(20,30,45,.18)}
+.hbtn{border:0;background:var(--blue);color:#fff;font-weight:600;font-size:15px;border-radius:999px;padding:8px 16px;margin-left:auto;white-space:nowrap}
+.hbtn:disabled{opacity:.5}
+.field input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-height:46px;max-width:100%;text-align:left}
+.field input[type=date]::-webkit-date-and-time-value{text-align:left}
 .err{color:var(--bad);font-size:13px}
 
 /* toast */
@@ -571,6 +576,15 @@ function openSheet(title, build, ctx){
     const x = el("button","x","✕"); x.setAttribute("aria-label","닫기"); x.onclick = closeSheet; h.append(x);
     sheetIn.append(h);
     build(sheetIn);
+    // 키보드에 가려도 누를 수 있게: 제목 옆에도 같은 버튼, 엔터로도 저장
+    const pb = sheetIn.querySelector("[data-primary]");
+    if (pb) {
+      const hb = el("button","hbtn",pb.dataset.primary); hb.onclick = () => pb.click(); h.insertBefore(hb, x);
+      new MutationObserver(() => { hb.disabled = pb.disabled; }).observe(pb, { attributes: true, attributeFilter: ["disabled"] });
+      sheetIn.querySelectorAll('input:not([type="date"])').forEach(i => i.addEventListener("keydown", e => {
+        if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); i.blur(); pb.click(); }
+      }));
+    }
   };
   draw();
   if (sheetCtx.live) sheetCtx.refresh = draw;
@@ -581,6 +595,15 @@ function closeSheet(){
   sheetCtx = null; sheet.classList.remove("on"); scrim.classList.remove("on");
 }
 scrim.onclick = closeSheet;
+if (window.visualViewport) {
+  const vv = window.visualViewport;
+  const fit = () => {
+    const kb = Math.max(0, innerHeight - vv.height - vv.offsetTop);
+    sheet.style.bottom = kb + "px";
+    sheet.style.maxHeight = Math.round(vv.height * .9) + "px";
+  };
+  vv.addEventListener("resize", fit); vv.addEventListener("scroll", fit);
+}
 addEventListener("keydown", e => { if (e.key === "Escape" && sheet.classList.contains("on")) closeSheet(); });
 
 function openZone(zid){
@@ -637,7 +660,8 @@ function openEdit(id){
       if (await putItem(next)) { closeSheet(); flashZone(next.zone); }
       save.disabled = false;
     };
-    btns.append(del, save); root.append(btns);
+    save.dataset.primary = "저장";
+    btns.classList.add("foot"); btns.append(del, save); root.append(btns);
   });
 }
 function field(label, input, extra){
@@ -765,7 +789,8 @@ function showForm(thumb, items, msg){
       flashZone(lastZone);
       toast(ready.length > 1 ? ready.length + "개 넣었어요" : ready[0].name.value.trim() + " 넣었어요");
     };
-    root.append(go);
+    go.dataset.primary = "넣기";
+    const foot = el("div","foot"); foot.append(go); root.append(foot);
   });
   setTimeout(() => { const n = $("#n0"); if (n && !n.value) n.focus(); }, 350);
 }
