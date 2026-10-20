@@ -299,7 +299,6 @@ zone("s1","1단 선반","냉장실 1단 선반","shelf","main","냉장실");
 zone("egg","계란 서랍","냉장실 계란 서랍","egg","main","냉장실");
 zone("s2","2단 선반","냉장실 2단 선반","shelf","main","냉장실");
 zone("s3","3단 선반","냉장실 3단 선반","shelf","main","냉장실");
-zone("s4","4단 선반","냉장실 4단 선반","shelf","main","냉장실");
 zone("vegL","신선야채실","신선야채실 (왼쪽)","veg","main","냉장실");
 zone("vegR","신선야채실","신선야채실 (오른쪽)","veg","main","냉장실");
 zone("multiL","멀티수납코너","멀티수납코너 (왼쪽)","multi","main","냉장실");
@@ -333,9 +332,8 @@ const FRIDGES = {
       { flex: 58, panel: [["냉동","-18°"],["냉장","2°"]],
         rows: [
           { h: 1.1, cells: ["s1"] },
-          { h: .9,  cells: ["egg","s2"] },
-          { h: 1,   cells: ["s3"] },
-          { h: 1.05,cells: ["s4"] },
+          { h: 1.35, cells: ["egg","s2"] },
+          { h: 1.4,  cells: ["s3"] },
           { h: 1.25,cells: ["vegL","vegR","@water"] },
           { h: .75, cells: ["multiL","multiR"] }
         ],
@@ -384,8 +382,8 @@ function lsSave(){ try { localStorage.setItem(LS, JSON.stringify([...state.items
 const newId = () => "i" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 
 const SEEDS = [
-  ["main","s1","고춧가루"],["main","egg","계란"],["main","s3","해찬들 고추장"],["main","s3","김치"],
-  ["main","s4","오이지"],["main","s4","나물무침"],["main","s4","장조림"],["main","s4","감"],
+  ["main","s1","고춧가루"],["main","egg","계란"],["main","s2","해찬들 고추장"],["main","s2","김치"],
+  ["main","s3","오이지"],["main","s3","나물무침"],["main","s3","장조림"],["main","s3","감"],
   ["main","vegL","양배추"],["main","multiL","일회용 소스"],["main","dl2","상추"],["main","dl3","초고추장"],
   ["main","dl3","백설 매실청"],["main","dl3","멸치액젓"],["main","dl3","맛술"],["main","dr1","토마토소스"],
   ["main","dr2","백설 굴소스"],["main","dr2","마요네즈"],["main","dr3","서울우유"],["main","dr3","자연은 복숭아주스"],
@@ -997,8 +995,8 @@ function guessZone(name){
   if (has("배추","양배추","상추","양파","감자","당근","오이","파","무","사과","배","귤","감","채소","과일","버섯")) return "vegL";
   if (has("아이스","냉동","만두","얼음","떡","돈까스","너겟","핫도그")) return "fzL1";
   if (has("고기","삼겹","목살","닭","생선","오징어","새우")) return "fzL2";
-  if (has("고추장","된장","쌈장")) return "s3";
-  if (has("김치","반찬","무침","장조림","나물","오이지")) return "s4";
+  if (has("고추장","된장","쌈장")) return "s2";
+  if (has("김치","반찬","무침","장조림","나물","오이지")) return "s3";
   return "s2";
 }
 
