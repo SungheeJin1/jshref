@@ -1,0 +1,16 @@
+{
+  "name": "엄마 냉장고에 뭐 있어",
+  "short_name": "엄마 냉장고",
+  "id": "/jshref/",
+  "start_url": "/jshref/",
+  "scope": "/jshref/",
+  "display": "standalone",
+  "background_color": "#f4f8fd",
+  "theme_color": "#f4f8fd",
+  "lang": "ko",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
